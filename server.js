@@ -27,46 +27,34 @@ const db = knex({
 app.use(bodyParser.json());
 app.use(cors());
 
-const database = {
-	users : [
-	{
-		id:'1',
-		name:'vinayak',
-		email:'abc@gmail.com',
-		password:'123',
-		entries: 0,
-		joined: new Date(),
 
-	},
-	{
-		id:'2',
-		name:'bunty',
-		email:'bunty@gmail.com',
-		password:'007',
-		entries: 0,
-		joined: new Date(),
-
-	}
-	]
-}
 
 app.get('/', (req, res) => {
 	res.send(database.users);
 })
 
 app.post('/signin', (req, res) => {
+	const {email, password} = req.body;
+	if(!name || !email || !password){
+		return res.status(400).json('unable to register')
+	}
+	
 	db.select('email', 'hash').from('login')
-	.where('email', '=', req.body.email)
+	.where('email', '=', email)
 	.then(data => {
-		const isValid = bcrypt.compareSync(req.body.password, data[0].hash);
-		console.log(isValid);
+		
+		const isValid = bcrypt.compareSync(password, data[0].hash);
+		
 		if(isValid){
 			return db.select('*').from('users')
-					.where('email', '=',req.body.email)
+					.where('email', '=', email)
 					.then(user => {
+						res.json(user[0])
 						
-						res.json(user)
-					})
+
+					}
+
+					)
 					.catch(err => res.status(400).json('unable to get user'))
 
 		}
@@ -79,8 +67,9 @@ app.post('/signin', (req, res) => {
 })
 
 app.post('/register',(req,res) => {
-	const {name, email, password} = req.body
-	const hash = bcrypt.hashSync(password)
+	const {name, email, password} = req.body;
+	
+	const hash = bcrypt.hashSync(password);
 	db.transaction(trx => {
 		trx.insert({
 			hash:hash,
@@ -89,9 +78,11 @@ app.post('/register',(req,res) => {
 		.into('login')
 		.returning('email')
 		.then(loginEmail => {
-			return trx('users').insert({
+			return trx('users')
+			.returning('*')
+			.insert({
 				name:name,
-				email:loginEmail,
+				email:loginEmail[0],
 				joined: new Date()
 				}).then(user =>{
 				res.json(user[0])
